@@ -498,25 +498,20 @@ class Client(Methods, Scaffold):
 
         try:
             file_id, directory, file_name, file_size, progress, progress_args = packet
+            final_file_path = os.path.abspath(re.sub("\\\\", "/", os.path.join(directory, file_name)))
+            os.makedirs(directory, exist_ok=True)
 
-            temp_file_path = await self.get_file(
+            final_file_path = await self.get_file(
+                download_location=final_file_path,
                 file_id=file_id,
                 file_size=file_size,
                 progress=progress,
                 progress_args=progress_args
             )
 
-            if temp_file_path:
-                final_file_path = os.path.abspath(re.sub("\\\\", "/", os.path.join(directory, file_name)))
-                os.makedirs(directory, exist_ok=True)
-                shutil.move(temp_file_path, final_file_path)
         except Exception as e:
             log.error(e, exc_info=True)
 
-            try:
-                os.remove(temp_file_path)
-            except OSError:
-                pass
         else:
             return final_file_path or None
 
@@ -808,6 +803,7 @@ class Client(Methods, Scaffold):
 
     async def get_file(
         self,
+        download_location: str,
         file_id: FileId,
         file_size: int,
         progress: callable,
@@ -910,7 +906,7 @@ class Client(Methods, Scaffold):
             )
 
             if isinstance(r, raw.types.upload.File):
-                with tempfile.NamedTemporaryFile("wb", delete=False) as f:
+                with open(download_location, "wb") as f:
                     file_name = f.name
 
                     while True:
@@ -962,7 +958,7 @@ class Client(Methods, Scaffold):
                         self.media_sessions[r.dc_id] = cdn_session
 
                 try:
-                    with tempfile.NamedTemporaryFile("wb", delete=False) as f:
+                    with open(download_location, "wb") as f:
                         file_name = f.name
 
                         while True:
